@@ -114,10 +114,13 @@ class MongoShellWrapper(replwrap.REPLWrapper):
             self._send_line('')
         response.append(self.child.before)
         response = self._filter_response(''.join(response))
+        test = MongoKernel._parse_shell_output(response)
+        test = json.dumps(test, indent=4)
 
-        logger.debug('Response: {}'.format(response))
-
-        return response
+        logger.info('Response: {}'.format(test))
+        if test == '[]':
+            return response
+        return test or response
 
 
 class MongoKernel(Kernel):
@@ -235,9 +238,9 @@ class MongoKernel(Kernel):
         except json.JSONDecodeError:
             output = []
             for doc in [line for line in shell_output.splitlines() if line]:
-                doc = re.sub('ISODate\(\"(.*?)\"\)', '{"$date": "\\1"}', doc)
-                doc = re.sub('ObjectId\(\"(.*?)\"\)', '{"$oid": "\\1"}', doc)
-                doc = re.sub('NumberLong\(\"(.*?)\"\)', '{"$numberLong": "\\1"}', doc)
+                doc = re.sub('ISODate\(\"(.*?)\"\)', '"ISODate(\\1)"', doc)
+                doc = re.sub('ObjectId\(\"(.*?)\"\)', '"ObjectId(\\1)"', doc)
+                doc = re.sub('NumberLong\(\"(.*?)\"\)', '"NumberLong(\\1)"', doc)
                 doc = json_loader(doc)
                 if doc:
                     output.append(doc)
@@ -280,7 +283,7 @@ class MongoKernel(Kernel):
             html_msg = {'data': {'text/html': html_str}}
             js_msg = {'data': {'application/javascript': js_str}}
             self.send_response(self.iopub_socket, 'display_data', html_msg)
-            self.send_response(self.iopub_socket, 'display_data', js_msg)
+            # self.send_response(self.iopub_socket, 'display_data', js_msg)
 
             result = {'data': {'text/plain': output},
                       'execution_count': self.execution_count}
